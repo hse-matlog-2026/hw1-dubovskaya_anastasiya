@@ -283,11 +283,11 @@ class Formula:
         # Optional Task 1.7
         if is_variable(self.root) or is_constant(self.root):
             return self.root
-        if is_unary(self.root):
+        elif is_unary(self.root):
             return self.root + self.first.polish()
-        if is_binary(self.root):
+        else:
+            assert is_binary(self.root)
             return self.root + self.first.polish() + self.second.polish()
-        raise ValueError(f"Unknown root type: {self.root}")
 
     @staticmethod
     def parse_polish(string: str) -> Formula:
@@ -300,9 +300,41 @@ class Formula:
             A formula whose polish notation representation is the given string.
         """
         # Optional Task 1.8
-        f, remainder = Formula._parse_polish_prefix(string)
-        assert remainder == ""
-        return f
+        def parse_prefix(s: str) -> Tuple[Formula, str]:
+            if not s:
+                raise ValueError("Unexpected end of string")
+            
+            if is_constant(s[0]):
+                return Formula(s[0]), s[1:]
+            if 'p' <= s[0] <= 'z':
+                i = 1
+                while i < len(s) and s[i].isdigit():
+                    i += 1
+                return Formula(s[:i]), s[i:]
+
+            if is_unary(s[0]):
+                f, r = parse_prefix(s[1:])
+                return Formula(s[0], f), r
+
+            op = None
+            op_len = 0
+            if len(s) >= 2 and is_binary(s[:2]):
+                op = s[:2]
+                op_len = 2
+            elif is_binary(s[0]):
+                op = s[0]
+                op_len = 1
+            
+            if op:
+                f1, r1 = parse_prefix(s[op_len:])
+                f2, r2 = parse_prefix(r1)
+                return Formula(op, f1, f2), r2
+
+            raise ValueError(f"Could not parse: {s}")
+
+        formula, remainder = parse_prefix(string)
+        assert remainder == "", f"String not fully parsed, remainder: {remainder}"
+        return formula
 
     def substitute_variables(self, substitution_map: Mapping[str, Formula]) -> \
             Formula:
@@ -358,4 +390,5 @@ class Formula:
                    is_binary(operator)
             assert substitution_map[operator].variables().issubset({'p', 'q'})
         # Task 3.4
+
 
